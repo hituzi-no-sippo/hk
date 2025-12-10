@@ -15,6 +15,7 @@ teardown() {
     assert_line --regexp '^prettier$'
     assert_line --regexp '^rustfmt$'
     assert_line --regexp '^yamllint$'
+    assert_line --regexp '^yamlfmt$'
 }
 
 @test "builtins output is sorted" {
@@ -26,6 +27,7 @@ teardown() {
     assert_output --partial 'prettier'
     assert_output --partial 'rustfmt'
     assert_output --partial 'yamllint'
+    assert_output --partial 'yamlfmt'
 }
 
 @test "builtins works in any directory" {
