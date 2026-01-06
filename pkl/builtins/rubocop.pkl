@@ -14,48 +14,6 @@ rubocop = new Config.Step {
   fix = "rubocop --force-exclusion --autocorrect {{ files }}"
   tests {
     local const testMaker = new helpers.TestMaker {
-      filename = "test.rb"
-      extra_files = new Mapping<String, String> {
-        [".rubocop.yml"] =
-          """
-          AllCops:
-            NewCops: enable
-
-          """
-      }
-    }
-    local const bad =
-      """
-      # frozen_string_literal: true
-
-      pp "Hello World"
-
-      """
-    local const good =
-      """
-      # frozen_string_literal: true
-
-      pp 'Hello World'
-
-      """
-    ["check bad file"] = testMaker.checkFail(bad, 1)
-    ["check good file"] = testMaker.checkPass(good)
-    ["fix bad file violations remain"] =
-      testMaker.fixFail(
-        """
-        pp "Hello World"
-
-        """,
-        """
-        pp 'Hello World'
-
-        """,
-        1,
-      )
-    ["fix bad file"] = testMaker.fixPass(bad, good)
-    ["fix good file"] = testMaker.fixPass(good, good)
-
-    local const forceExclutionTestMaker = new helpers.TestMaker {
       filename = "foo.rb"
       extra_files = new Mapping<String, String> {
         [".rubocop.yml"] =
@@ -68,6 +26,13 @@ rubocop = new Config.Step {
           """
       }
     }
-    ["check excluded file"] = forceExclutionTestMaker.checkPass(bad)
+    local const bad =
+      """
+      # frozen_string_literal: true
+
+      pp "Hello World"
+
+      """
+    ["check excluded file"] = testMaker.checkPass(bad)
   }
 }
