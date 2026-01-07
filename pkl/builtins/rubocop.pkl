@@ -9,8 +9,9 @@ import "./test/helpers.pkl"
 rubocop = new Config.Step {
   types = List("ruby")
   stage = "<JOB_FILES>"
-  check = "rubocop {{ files }}"
-  fix = "rubocop --autocorrect {{ files }}"
+  // `--force-exclusion`: Any files excluded by `Exclude` in RuboCop configuration files will be excluded, even if given explicitly as arguments.
+  check = "rubocop --force-exclusion {{ files }}"
+  fix = "rubocop --force-exclusion --autocorrect {{ files }}"
   tests {
     local const testMaker = new helpers.TestMaker {
       filename = "test.rb"
@@ -53,5 +54,22 @@ rubocop = new Config.Step {
       )
     ["fix bad file"] = testMaker.fixPass(bad, good)
     ["fix good file"] = testMaker.fixPass(good, good)
+
+    local const respectsConfigExcludeTestMaker = new helpers.TestMaker {
+      filename = "foo.rb"
+      extra_files = new Mapping<String, String> {
+        [".rubocop.yml"] =
+          """
+          AllCops:
+            NewCops: enable
+          Style/StringLiterals:
+            Exclude:
+              - foo.rb
+
+          """
+      }
+    }
+    ["check respects config exclude"] = respectsConfigExcludeTestMaker.checkPass(bad)
+    ["fix respects config exclude"] = respectsConfigExcludeTestMaker.fixPass(bad, bad)
   }
 }
