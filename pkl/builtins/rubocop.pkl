@@ -10,7 +10,7 @@ rubocop = new Config.Step {
   types = List("ruby")
   stage = "<JOB_FILES>"
   // `--force-exclusion`: Any files excluded by `Exclude` in RuboCop configuration files will be excluded, even if given explicitly as arguments.
-  check = "rubocop --debug --show-cops Style/StringLiterals"
+  check = "rubocop --force-exclusion --debug {{ files }}"
   fix = "rubocop --force-exclusion --autocorrect {{ files }}"
   tests {
     local const testMaker = new helpers.TestMaker {
@@ -34,6 +34,6 @@ rubocop = new Config.Step {
       pp "Hello World"
 
       """
-    ["check excluded file"] = testMaker.checkFail(bad, 10)
+    ["check excluded file"] = testMaker.checkPass(bad)
   }
 }
