@@ -19,8 +19,7 @@ rubocop = new Config.Step {
         [".rubocop.yml"] =
           """
           AllCops:
-            NewCops: enable
-          Style/StringLiterals:
+            NewCops: disable
             Exclude:
               - foo.rb
 
