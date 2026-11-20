@@ -1,0 +1,4 @@
+#!/usr/bin/env -S mise tool-stub
+
+version = "0.2.11"
+tool = "aqua:ewhauser/shuck"

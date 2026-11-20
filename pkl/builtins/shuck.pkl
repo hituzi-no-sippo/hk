@@ -1,0 +1,107 @@
+import "../Builtins.pkl"
+import "../Config.pkl"
+import "./test/helpers.pkl"
+
+/// Lints sh, bash, dash, ksh, mksh, bats and zsh scripts, and the `run:` blocks of GitHub Actions
+/// workflows and composite actions.
+///
+/// shuck reads ShellCheck's `# shellcheck disable=` comments, and `.shuck.toml` or `shuck.toml`
+/// for rule selection and exclusions.
+@Builtins.meta {
+  category = "Shell"
+  description = "Fast shell script linter"
+  project_indicators {
+    new { glob = "*.sh"; recursive = true }
+    new { file = ".github/workflows" }
+    new { file = ".shuck.toml" }
+    new { file = "shuck.toml" }
+  }
+  mise_tools = List("aqua:ewhauser/shuck")
+}
+shuck = new Config.Step {
+  batch = true
+  match_any =
+    List(
+      new Config.FileSelector {
+        glob =
+          List(
+            "**/*.sh",
+            "**/*.bash",
+            "**/*.zsh",
+            "**/*.ksh",
+            "**/*.dash",
+            "**/*.mksh",
+            "**/*.bats",
+            ".github/workflows/*.yml",
+            ".github/workflows/*.yaml",
+            "**/action.yml",
+            "**/action.yaml",
+          )
+      },
+      new Config.FileSelector { types = List("sh", "bash", "zsh") },
+    )
+  // The default output prints `warning[C001]: message` / ` --> path:line:col`, the same shape as rustc's
+  diagnostic_format = "rustc"
+  check = new Config.CommandSpec {
+    command = new Config.Command { argv = List("shuck", "check", "{{files}}") }
+    effect = "read"
+  }
+  // `--fix` applies only safe fixes, and still exits non-zero when findings remain.
+  fix = new Config.CommandSpec {
+    command = new Config.Command {
+      argv = List("shuck", "check", "--fix", "{{files}}")
+    }
+    effect = "write"
+  }
+  tests {
+    local const testMaker = new helpers.TestMaker {
+      filename = "test.sh"
+    }
+    local const unused = "#!/bin/sh\nunused=value\necho hi\n"
+    local const good = "#!/bin/sh\necho hi\n"
+    // X002 (`==` in a POSIX test) is enabled by default and has a safe fix; C001 has none.
+    local const fixBefore = "#!/bin/sh\nx=1\nif [ \"$x\" == 1 ]; then echo y; fi\n"
+    local const fixAfter = "#!/bin/sh\nx=1\nif [ \"$x\" = 1 ]; then echo y; fi\n"
+    ["check bad file"] = testMaker.checkFail(unused, 1)
+    ["check good file"] = testMaker.checkPass(good)
+    ["check bad file reports diagnostics"] =
+      testMaker.checkDiagnostics(
+        unused,
+        1,
+        List(new Config.StepTestDiagnostic {
+          path = "test.sh"
+          line = 2
+          column = 1
+          severity = "warning"
+          rule = "C001"
+          message = "variable `unused` is assigned but never used"
+        }),
+      )
+    ["fix bad file"] = testMaker.fixPass(fixBefore, fixAfter)
+    ["fix good file"] = testMaker.fixPass(good, good)
+    ["fix file with no safe fix"] = testMaker.fixFail(unused, unused, 1)
+    local const extensionlessTestMaker = new helpers.TestMaker {
+      filename = "script"
+      files = List("script")
+    }
+    ["check extensionless shell script"] = extensionlessTestMaker.checkFail(unused, 1)
+    local const workflowTestMaker = new helpers.TestMaker {
+      filename = ".github/workflows/ci.yml"
+    }
+    ["check workflow run block"] =
+      workflowTestMaker.checkFail(
+        """
+        on: push
+        jobs:
+          test:
+            runs-on: ubuntu-latest
+            steps:
+              - run: |
+                  unused=value
+                  echo hi
+
+        """,
+        1,
+      )
+  }
+}
